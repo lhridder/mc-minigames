@@ -1,0 +1,26 @@
+main: nl.lucasridder.minigames.Main
+name: minigames
+version: 1.0
+author: LucasRidder
+api-version: 1.15
+
+commands:
+  gamemode:
+    aliases: gm
+    usage: "Usage: /<command> [survival|creative|adventure|spectator|0|1|2|3] ([player])"
+  survival:
+    usage: "/<command>"
+  lobby:
+    aliases: hub
+  kitpvp:
+    usage: "/<command>"
+  lock:
+    aliases: lockdown
+    usage: "/<command> (reden)"
+  setspawn:
+    usage: "/<command>"
+  spawn:
+    usage: "/<command>"
+    aliases: leave
+  fly:
+    usage: "/<command> ([player])"

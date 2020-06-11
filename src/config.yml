@@ -1,0 +1,7 @@
+spawn:
+  x: ''
+  y: ''
+  z: ''
+scoreboard:
+  top: 'hutsserver'
+  name: 'play.huts.nl'
