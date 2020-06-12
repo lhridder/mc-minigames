@@ -13,23 +13,12 @@ commands:
   lobby:
     aliases: hub
     usage: "/<command>"
-  tntrun:
-    aliases: tr
-    usage: "/<command>"
-  bedwars:
-    aliases: bw
-    usage: "/<command>"
-  paintball:
-    aliases: pb
-    usage: "/<command>"
   kitpvp:
     usage: "/<command>"
   lock:
     aliases: lockdown
     usage: "/<command> (reden)"
   setspawn:
-    usage: "/<command>"
-  stop:
     usage: "/<command>"
   spawn:
     usage: "/<command>"

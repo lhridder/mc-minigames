@@ -54,6 +54,7 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
 
     //check paintball portal
     public boolean paintballPortal(Location location) {
+        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
         double x = location.getBlock().getX();
         double z = location.getBlock().getZ();
         return x >= 12 && z == -31 && x <= 14;
@@ -64,7 +65,15 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
         double x = location.getBlock().getX();
         double z = location.getBlock().getZ();
-        return x >= -3 && z == -31 && x <= 1;
+        return x >= -2 && z == -30 && x <= 3;
+    }
+
+    //check bedwars portal
+    public boolean tntrunPortal(Location location) {
+        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
+        double x = location.getBlock().getX();
+        double z = location.getBlock().getZ();
+        return x >= -19 && z == -31 && x <= -16;
     }
 
     //spawn
@@ -80,11 +89,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         } catch (Exception e1) {
             e1.printStackTrace();
         }
-        //title
-        PacketPlayOutTitle title = new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.TITLE, IChatBaseComponent.ChatSerializer.a("{\"text\":\"§aWelkom!\"}"), 20, 40, 20);
-        PacketPlayOutTitle subtitle = new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.SUBTITLE, IChatBaseComponent.ChatSerializer.a("{\"text\":\"§bOp de minigames server\"}"), 20, 40, 20);
-        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(title);
-        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(subtitle);
     }
 
     //send server
@@ -253,16 +257,19 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
 
         //spawn loc
         spawn(player);
+        //title
+        PacketPlayOutTitle title = new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.TITLE, IChatBaseComponent.ChatSerializer.a("{\"text\":\"§aWelkom!\"}"), 20, 40, 20);
+        PacketPlayOutTitle subtitle = new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.SUBTITLE, IChatBaseComponent.ChatSerializer.a("{\"text\":\"§bOp de minigames server\"}"), 20, 40, 20);
+        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(title);
+        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(subtitle);
 
         //scoreboard
         new BukkitRunnable() {
             public void run() {
                 if (!player.isOnline()) this.cancel();
-                if (CurrentGame.containsKey(player)) return;
-                else {
+                if (!CurrentGame.containsKey(player)) {
                     updateScoreboard(player);
                 }
-
             }
         }.runTaskTimer(this, 20, 20);
 
@@ -419,45 +426,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         //survival
         if(cmd.getName().equalsIgnoreCase("survival")) { sendServer("survival", (Player) sender); }
 
-        //kitpvp
-        if(cmd.getName().equalsIgnoreCase("kitpvp")) { sendServer("kitpvp", (Player) sender); }
-
-        //bedwars
-        if(cmd.getName().equalsIgnoreCase("bedwars")) {
-            if (this.CurrentGame.containsKey(player)) {
-                player.sendMessage(ChatColor.RED + "Leave eerst je huidige game!" + ChatColor.GOLD + " /leave");
-            } else {
-                player.sendMessage(ChatColor.GREEN + "Joining bedwars...");
-                spawn(player);
-                player.performCommand("bedwars:bw join");
-                CurrentGame.put(player, "bedwars");
-            }
-        }
-
-        //tntrun
-        if(cmd.getName().equalsIgnoreCase("tntrun")) {
-            if (this.CurrentGame.containsKey(player)) {
-                player.sendMessage(ChatColor.RED + "Leave eerst je huidige game!" + ChatColor.GOLD + " /leave");
-            } else {
-                player.sendMessage(ChatColor.GREEN + "Joining tntrun...");
-                spawn(player);
-                player.performCommand("tntrun:tntrun join");
-                CurrentGame.put(player, "tntrun");
-            }
-        }
-
-        //paintball
-        if(cmd.getName().equalsIgnoreCase("paintball")) {
-            if (this.CurrentGame.containsKey(player)) {
-                player.sendMessage(ChatColor.RED + "Leave eerst je huidige game!" + ChatColor.GOLD + " /leave");
-            } else {
-                player.sendMessage(ChatColor.GREEN + "Joining paintball...");
-                spawn(player);
-                player.performCommand("paintball:pb join");
-                CurrentGame.put(player, "paintball");
-            }
-        }
-
         //fly
         if(cmd.getName().equalsIgnoreCase("fly")) {
             if (!sender.isOp()) {
@@ -511,15 +479,15 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
             if(CurrentGame.containsKey(player)) {
                 if (this.CurrentGame.containsValue("paintball")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving paintball...");
-                    player.performCommand("paintball:pb leave");
+                    player.performCommand("pb leave");
                 }
                 if (this.CurrentGame.containsValue("bedwars")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving bedwars...");
-                    player.performCommand("bedwars:bw leave");
+                    player.performCommand("bw leave");
                 }
                 if (this.CurrentGame.containsValue("tntrun")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving tntrun...");
-                    player.performCommand("tntrun:tr leave");
+                    player.performCommand("tr leave");
                 }
                 CurrentGame.remove(player);
             }
@@ -628,6 +596,9 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
             if (sign.getLine(1).contains("[Join]")) {
                 CurrentGame.put(e.getPlayer(), "tntrun");
             }
+            if (sign.getLine(1).contains("gestolen")) {
+                CurrentGame.put(e.getPlayer(), "bedwars");
+            }
         }
     }
 
@@ -639,22 +610,28 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         if(paintballPortal(location)) {
                 if (this.CurrentGame.containsValue("paintball")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving paintball...");
-                    player.performCommand("paintball:pb leave");
+                    player.performCommand("pb leave");
                     spawn(player);
                     CurrentGame.remove(player);
                 } else {
                     player.sendMessage(ChatColor.GREEN + "Joining paintball...");
                     spawn(player);
-                    player.performCommand("paintball:pb join");
+                    player.performCommand("pb join");
                     CurrentGame.put(player, "paintball");
                 }
         }
         if(bedwarsPortal(location)) {
             if (this.CurrentGame.containsKey(player)) {
-                    player.sendMessage(ChatColor.GREEN + "Joining bedwars...");
-                    spawn(player);
-                    player.performCommand("bedwars:bw join");
-                    CurrentGame.put(player, "bedwars");
+                player.sendMessage(ChatColor.GREEN + "Leaving bedwars...");
+                spawn(player);
+                CurrentGame.remove(player);
+            }
+        }
+        if(tntrunPortal(location)) {
+            if (this.CurrentGame.containsKey(player)) {
+                player.sendMessage(ChatColor.GREEN + "Leaving tntrun...");
+                spawn(player);
+                CurrentGame.remove(player);
             }
         }
     }
