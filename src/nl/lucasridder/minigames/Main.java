@@ -1,21 +1,27 @@
 package nl.lucasridder.minigames;
 
+import net.minecraft.server.v1_15_R1.IChatBaseComponent;
+import net.minecraft.server.v1_15_R1.PacketPlayOutTitle;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.libs.org.apache.commons.io.output.ByteArrayOutputStream;
+import org.bukkit.craftbukkit.v1_15_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
+import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -35,7 +41,52 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
     int all = 0;
     boolean lock;
     String lockreason;
-    HashMap<Player, String> PlayerBoolean = new HashMap<>();
+    HashMap<Player, String> nextServer = new HashMap<>();
+    HashMap<Player, String> CurrentGame = new HashMap<>();
+
+    //check if block is in spawn
+    public boolean checkSpawn(Location location) {
+        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
+        double x = location.getBlock().getX();
+        double z = location.getBlock().getZ();
+        return x >= -43 && z >= -70 && x <= 35 && z <= 8;
+    }
+
+    //check paintball portal
+    public boolean paintballPortal(Location location) {
+        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
+        double x = location.getBlock().getX();
+        double z = location.getBlock().getZ();
+        return x >= 12 && z == -31 && x <= 14;
+    }
+
+    //check bedwars portal
+    public boolean bedwarsPortal(Location location) {
+        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
+        double x = location.getBlock().getX();
+        double z = location.getBlock().getZ();
+        return x >= -3 && z == -31 && x <= 1;
+    }
+
+    //spawn
+    public void spawn(Player player) {
+        try {
+            int x = this.getConfig().getInt("spawn.x");
+            int y = this.getConfig().getInt("spawn.y");
+            int z = this.getConfig().getInt("spawn.z");
+            float yaw = this.getConfig().getInt("spawn.yaw");
+            float pitch = this.getConfig().getInt("spawn.pitch");
+            Location loc = new Location(Bukkit.getWorld("minigames"), x, y, z, pitch, yaw);
+            player.teleport(loc);
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+        //title
+        PacketPlayOutTitle title = new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.TITLE, IChatBaseComponent.ChatSerializer.a("{\"text\":\"§aWelkom!\"}"), 20, 40, 20);
+        PacketPlayOutTitle subtitle = new PacketPlayOutTitle(PacketPlayOutTitle.EnumTitleAction.SUBTITLE, IChatBaseComponent.ChatSerializer.a("{\"text\":\"§bOp de minigames server\"}"), 20, 40, 20);
+        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(title);
+        ((CraftPlayer) player).getHandle().playerConnection.sendPacket(subtitle);
+    }
 
     //send server
     public void sendServer(String server, Player player) {
@@ -50,7 +101,7 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
             e.printStackTrace();
         }
         player.sendPluginMessage(this, "BungeeCord", b.toByteArray());
-        PlayerBoolean.put(player, server);
+        nextServer.put(player, server);
     }
 
     //playercount
@@ -202,20 +253,13 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         }
 
         //spawn loc
-        try {
-            int x = this.getConfig().getInt("spawn.x");
-            int y = this.getConfig().getInt("spawn.y");
-            int z = this.getConfig().getInt("spawn.z");
-            Location loc = new Location(player.getWorld(), x, y, z);
-            player.teleport(loc);
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        }
+        spawn(player);
 
         //scoreboard
         new BukkitRunnable() {
             public void run() {
                 if (!player.isOnline()) this.cancel();
+                if (CurrentGame.containsKey(player)) return;
                 else {
                     updateScoreboard(player);
                 }
@@ -237,15 +281,18 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         Player player = e.getPlayer();
         String name = player.getName();
 
+        //leave game
+        CurrentGame.remove(player);
+
         //bungee check
-        String server = PlayerBoolean.get(player);
+        String server = nextServer.get(player);
         if (server != null) {
             if (player.hasPermission("minigames.admin")) {
                 e.setQuitMessage(ChatColor.RED + name + ChatColor.DARK_RED + " -> " + ChatColor.GRAY + server);
             } else {
                 e.setQuitMessage(ChatColor.WHITE + name + ChatColor.DARK_RED + " -> " + ChatColor.GRAY + server);
             }
-            PlayerBoolean.remove(player);
+            nextServer.remove(player);
         } else {
             //leave message
             if (player.hasPermission("minigames.admin")) {
@@ -428,19 +475,25 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
                 return true;
             }
 
-            // TODO Game logic
+            if(CurrentGame.containsKey(player)) {
+                if (this.CurrentGame.containsValue("paintball")) {
+                    player.sendMessage(ChatColor.GREEN + "Leaving paintball...");
+                    player.performCommand("pb leave");
+                }
+                if (this.CurrentGame.containsValue("bedwars")) {
+                    player.sendMessage(ChatColor.GREEN + "Leaving bedwars...");
+                    player.performCommand("bw leave");
+                }
+                if (this.CurrentGame.containsValue("tntrun")) {
+                    player.sendMessage(ChatColor.GREEN + "Leaving tntrun...");
+                    player.performCommand("tr leave");
+                }
+                CurrentGame.remove(player);
+            }
 
             //spawn loc
             sender.sendMessage(ChatColor.GREEN + "Aan het teleporteren...");
-            try {
-                int x = this.getConfig().getInt("spawn.x");
-                int y = this.getConfig().getInt("spawn.y");
-                int z = this.getConfig().getInt("spawn.z");
-                Location loc = new Location(player.getWorld(), x, y, z);
-                player.teleport(loc);
-            } catch (Exception e1) {
-                e1.printStackTrace();
-            }
+            spawn(player);
         }
 
         //lock
@@ -508,27 +561,17 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
     }
 
     //Commandblock
-    /*
     @EventHandler
     public void onPlayerCommand(PlayerCommandPreprocessEvent e) {
         String message = e.getMessage();
         Player player = e.getPlayer();
         if (!player.isOp()) {
             //help
-            if (message.startsWith("/hub") | message.startsWith("/minigames") | message.startsWith("/lobby") | message.startsWith("/spawn") | message.startsWith("/report")) {
-                e.setCancelled(false);
-            } else if (message.startsWith("/help")) {
-                player.sendMessage(ChatColor.DARK_GRAY + "Zie hier de beschikbare commando's: ");
-                player.sendMessage(ChatColor.DARK_GRAY + " - " + ChatColor.AQUA + "/hub" + ChatColor.DARK_GRAY + " : " + ChatColor.GOLD + "Ga naar de hub server!");
-                player.sendMessage(ChatColor.DARK_GRAY + " - " + ChatColor.AQUA + "/minigames" + ChatColor.DARK_GRAY + " : " + ChatColor.GOLD + "Ga naar de minigames server!");
-                player.sendMessage(ChatColor.DARK_GRAY + " - " + ChatColor.AQUA + "/spawn" + ChatColor.DARK_GRAY + " : " + ChatColor.GOLD + "Teleporteer naar spawn!");
-                e.setCancelled(true);
-            } else {
+            if (message.startsWith("/pb") | message.startsWith("/bw") | message.startsWith("/lobby") | message.startsWith("/spawn") | message.startsWith("/report")) {
                 e.setCancelled(true);
             }
         }
     }
-     */
 
     //Chat
     @EventHandler
@@ -543,12 +586,93 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         }
     }
 
+    //signs
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent e) {
+        if (!(e.getAction() == Action.RIGHT_CLICK_BLOCK)) return;
+        if (e.getClickedBlock().getState() instanceof Sign) {
+            Sign sign = (Sign) e.getClickedBlock().getState();
+            if (sign.getLine(0).contains("[TNTRun]")) {
+                CurrentGame.put(e.getPlayer(), "tntrun");
+            }
+        }
+    }
+
+    //checkportal
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent e) {
+        Player player = e.getPlayer();
+        Location location = player.getLocation();
+        if(paintballPortal(location)) {
+            if (this.CurrentGame.containsKey(player)) {
+                if (this.CurrentGame.containsValue("paintball")) {
+                    player.sendMessage(ChatColor.GREEN + "Leaving paintball...");
+                    player.performCommand("pb leave");
+                    spawn(player);
+                    CurrentGame.remove(player);
+                } else {
+                    player.sendMessage(ChatColor.GREEN + "Joining paintball...");
+                    spawn(player);
+                    player.performCommand("pb join");
+                    CurrentGame.put(player, "paintball");
+                }
+            }
+        }
+        if(bedwarsPortal(location)) {
+            if (this.CurrentGame.containsKey(player)) {
+                    player.sendMessage(ChatColor.GREEN + "Joining bedwars...");
+                    spawn(player);
+                    player.performCommand("bw join");
+                    CurrentGame.put(player, "bedwars");
+            }
+        }
+    }
+
+    //No Damage
+    @EventHandler
+    public void onDamage(EntityDamageEvent e) {
+        Location location = e.getEntity().getLocation();
+        if(checkSpawn(location)) {
+            e.setCancelled(true);
+        }
+    }
+
+    //break
+    @EventHandler
+    public void onBreak(BlockBreakEvent e) {
+        Location location = e.getBlock().getLocation();
+        Player player = e.getPlayer();
+        if(checkSpawn(location)) {
+            if(!player.isOp()) {
+                e.setCancelled(true);
+                player.sendMessage(ChatColor.RED + "Hey!, je mag in de spawn niks veranderen!");
+            }
+        }
+    }
+
+    //Block place
+    @EventHandler
+    public void onPlace(BlockPlaceEvent e) {
+        Location location = e.getBlock().getLocation();
+        Player player = e.getPlayer();
+        if(checkSpawn(location)) {
+            if(!player.isOp()) {
+                e.setCancelled(true);
+                player.sendMessage(ChatColor.RED + "Hey!, je mag in de spawn niks veranderen!");
+            }
+        }
+    }
+
     //dood
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent e) {
         String name = e.getEntity().getName();
         e.setDeathMessage(ChatColor.GRAY + name + ChatColor.RESET + " is gestorven" + ChatColor.RED + "!");
     }
+
+    //Weer
+    @EventHandler
+    public void onWeatherChange(WeatherChangeEvent e){ e.setCancelled(e.toWeatherState()); }
 
     //Listener bungee
     @SuppressWarnings("NullableProblems")
