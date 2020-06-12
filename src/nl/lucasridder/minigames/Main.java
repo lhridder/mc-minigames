@@ -18,6 +18,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.*;
@@ -46,7 +47,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
 
     //check if block is in spawn
     public boolean checkSpawn(Location location) {
-        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
         double x = location.getBlock().getX();
         double z = location.getBlock().getZ();
         return x >= -43 && z >= -70 && x <= 35 && z <= 8;
@@ -54,7 +54,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
 
     //check paintball portal
     public boolean paintballPortal(Location location) {
-        if(!location.getWorld().equals(Bukkit.getWorld("minigames"))) return false;
         double x = location.getBlock().getX();
         double z = location.getBlock().getZ();
         return x >= 12 && z == -31 && x <= 14;
@@ -307,6 +306,8 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
     @SuppressWarnings("NullableProblems")
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        Player player = (Player) sender;
+
         //gamemode
         if(cmd.getName().equalsIgnoreCase("gamemode")) {
             if(sender.hasPermission("survival.admin")) {
@@ -326,7 +327,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
                 //goede aantal argumenten
                 if (args.length == 1) {
                     //pak speler
-                    Player player = (Player) sender;
 
                     if (args[0].equalsIgnoreCase("creative") | args[0].equalsIgnoreCase("1")) {
                         player.setGameMode(GameMode.CREATIVE);
@@ -395,7 +395,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
                 return true;
             } else {
                 if(sender.isOp()) {
-                    Player player = (Player) sender;
                     int x = player.getLocation().getBlockX();
                     int y = player.getLocation().getBlockY();
                     int z = player.getLocation().getBlockZ();
@@ -423,6 +422,42 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         //kitpvp
         if(cmd.getName().equalsIgnoreCase("kitpvp")) { sendServer("kitpvp", (Player) sender); }
 
+        //bedwars
+        if(cmd.getName().equalsIgnoreCase("bedwars")) {
+            if (this.CurrentGame.containsKey(player)) {
+                player.sendMessage(ChatColor.RED + "Leave eerst je huidige game!" + ChatColor.GOLD + " /leave");
+            } else {
+                player.sendMessage(ChatColor.GREEN + "Joining bedwars...");
+                spawn(player);
+                player.performCommand("bedwars:bw join");
+                CurrentGame.put(player, "bedwars");
+            }
+        }
+
+        //tntrun
+        if(cmd.getName().equalsIgnoreCase("tntrun")) {
+            if (this.CurrentGame.containsKey(player)) {
+                player.sendMessage(ChatColor.RED + "Leave eerst je huidige game!" + ChatColor.GOLD + " /leave");
+            } else {
+                player.sendMessage(ChatColor.GREEN + "Joining tntrun...");
+                spawn(player);
+                player.performCommand("tntrun:tntrun join");
+                CurrentGame.put(player, "tntrun");
+            }
+        }
+
+        //paintball
+        if(cmd.getName().equalsIgnoreCase("paintball")) {
+            if (this.CurrentGame.containsKey(player)) {
+                player.sendMessage(ChatColor.RED + "Leave eerst je huidige game!" + ChatColor.GOLD + " /leave");
+            } else {
+                player.sendMessage(ChatColor.GREEN + "Joining paintball...");
+                spawn(player);
+                player.performCommand("paintball:pb join");
+                CurrentGame.put(player, "paintball");
+            }
+        }
+
         //fly
         if(cmd.getName().equalsIgnoreCase("fly")) {
             if (!sender.isOp()) {
@@ -433,7 +468,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
                 } else {
                     //zelf
                     if (args.length == 0) {
-                        Player player = (Player) sender;
 
                         if (player.isFlying()) {
                             player.setFlying(false);
@@ -468,7 +502,6 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
 
         //spawn/leave
         if(cmd.getName().equalsIgnoreCase("spawn")) {
-            Player player = (Player) sender;
             if (!(sender instanceof Player)) {
                 //zeg het
                 sender.sendMessage(ChatColor.RED + "Je bent geen speler");
@@ -478,15 +511,15 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
             if(CurrentGame.containsKey(player)) {
                 if (this.CurrentGame.containsValue("paintball")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving paintball...");
-                    player.performCommand("pb leave");
+                    player.performCommand("paintball:pb leave");
                 }
                 if (this.CurrentGame.containsValue("bedwars")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving bedwars...");
-                    player.performCommand("bw leave");
+                    player.performCommand("bedwars:bw leave");
                 }
                 if (this.CurrentGame.containsValue("tntrun")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving tntrun...");
-                    player.performCommand("tr leave");
+                    player.performCommand("tntrun:tr leave");
                 }
                 CurrentGame.remove(player);
             }
@@ -567,7 +600,7 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         Player player = e.getPlayer();
         if (!player.isOp()) {
             //help
-            if (message.startsWith("/pb") | message.startsWith("/bw") | message.startsWith("/lobby") | message.startsWith("/spawn") | message.startsWith("/report")) {
+            if (message.contains("/pl")) {
                 e.setCancelled(true);
             }
         }
@@ -592,7 +625,7 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         if (!(e.getAction() == Action.RIGHT_CLICK_BLOCK)) return;
         if (e.getClickedBlock().getState() instanceof Sign) {
             Sign sign = (Sign) e.getClickedBlock().getState();
-            if (sign.getLine(0).contains("[TNTRun]")) {
+            if (sign.getLine(1).contains("[Join]")) {
                 CurrentGame.put(e.getPlayer(), "tntrun");
             }
         }
@@ -604,25 +637,23 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         Player player = e.getPlayer();
         Location location = player.getLocation();
         if(paintballPortal(location)) {
-            if (this.CurrentGame.containsKey(player)) {
                 if (this.CurrentGame.containsValue("paintball")) {
                     player.sendMessage(ChatColor.GREEN + "Leaving paintball...");
-                    player.performCommand("pb leave");
+                    player.performCommand("paintball:pb leave");
                     spawn(player);
                     CurrentGame.remove(player);
                 } else {
                     player.sendMessage(ChatColor.GREEN + "Joining paintball...");
                     spawn(player);
-                    player.performCommand("pb join");
+                    player.performCommand("paintball:pb join");
                     CurrentGame.put(player, "paintball");
                 }
-            }
         }
         if(bedwarsPortal(location)) {
             if (this.CurrentGame.containsKey(player)) {
                     player.sendMessage(ChatColor.GREEN + "Joining bedwars...");
                     spawn(player);
-                    player.performCommand("bw join");
+                    player.performCommand("bedwars:bw join");
                     CurrentGame.put(player, "bedwars");
             }
         }
@@ -660,6 +691,14 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
                 e.setCancelled(true);
                 player.sendMessage(ChatColor.RED + "Hey!, je mag in de spawn niks veranderen!");
             }
+        }
+    }
+
+    //No Damage
+    @EventHandler
+    public void onPvp(EntityDamageByEntityEvent e) {
+        if(e.getEntity() instanceof Player) {
+            if(checkSpawn(e.getEntity().getLocation())) e.setCancelled(true);
         }
     }
 

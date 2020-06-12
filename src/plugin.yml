@@ -1,6 +1,6 @@
 main: nl.lucasridder.minigames.Main
 name: minigames
-version: 1.0
+version: 1.1
 author: LucasRidder
 api-version: 1.15
 
@@ -12,12 +12,24 @@ commands:
     usage: "/<command>"
   lobby:
     aliases: hub
+    usage: "/<command>"
+  tntrun:
+    aliases: tr
+    usage: "/<command>"
+  bedwars:
+    aliases: bw
+    usage: "/<command>"
+  paintball:
+    aliases: pb
+    usage: "/<command>"
   kitpvp:
     usage: "/<command>"
   lock:
     aliases: lockdown
     usage: "/<command> (reden)"
   setspawn:
+    usage: "/<command>"
+  stop:
     usage: "/<command>"
   spawn:
     usage: "/<command>"
