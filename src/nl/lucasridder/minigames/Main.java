@@ -546,12 +546,14 @@ public class Main extends JavaPlugin implements Listener, PluginMessageListener 
         if(cmd.getName().equalsIgnoreCase("stop")) {
             if(sender.isOp()) {
                 sender.sendMessage(ChatColor.GREEN + "Kicking all players...");
-                for (Player players : this.getServer().getOnlinePlayers()) {
-                    players.kickPlayer(ChatColor.GRAY + "De server wordt momenteel herstart" + "\n" +
-                            ChatColor.BLUE + "wacht even met opnieuw joinen" + "\n" +
-                            ChatColor.YELLOW + "Zie actuele status via: " + ChatColor.AQUA + "https://www.discord.gg/AzVCaQE");
-                    System.out.println("[HUB]" + ChatColor.DARK_RED + " stopping server...");
-                    Bukkit.shutdown();
+                if(this.getServer().getOnlinePlayers().size() != 0) {
+                    for (Player players : this.getServer().getOnlinePlayers()) {
+                        players.kickPlayer(ChatColor.GRAY + "De server wordt momenteel herstart" + "\n" +
+                                ChatColor.BLUE + "wacht even met opnieuw joinen" + "\n" +
+                                ChatColor.YELLOW + "Zie actuele status via: " + ChatColor.AQUA + "https://www.discord.gg/AzVCaQE");
+                        System.out.println("[HUB]" + ChatColor.DARK_RED + " stopping server...");
+                        Bukkit.shutdown();
+                    }
                 }
             } else {
                 sender.sendMessage(ChatColor.DARK_RED + "Geen toegang tot dit commando");
